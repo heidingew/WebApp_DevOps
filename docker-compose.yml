@@ -1,0 +1,62 @@
+version: '3.8'
+services:
+  jenkins:
+    build:
+      context: .
+      dockerfile: jenkins.Dockerfile
+    volumes:
+      - $PWD/jenkins_home:/var/jenkins_home
+      - $PWD:/app # remove if using using SAS base git products
+    ports:
+      - 8080:8080
+  aws:
+    image: organs/awscli
+  environment:
+    AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID}"
+    AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY}"
+    AWS_REGION: "${AWS_REGION}"
+    AWS_DEFAULT_REGION: us-west-2
+  volumes:
+    - $PWD:/app
+  working_dir: /app
+  terrafrom:
+    build:
+      context: .
+      dockerfile: terraform.Dockerfile
+    environment:
+      AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID}"
+      AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY}"
+      AWS_REGION: "${AWS_REGION}"
+      AWS_DEFAULT_REGION: us-west-2
+    volumes:
+      - $PWD:/app
+    working_dir: /app
+  selenium:
+    image: selenium/standalone-chrome-debug
+    ports:
+      - 4444:4444 #outside container:inside container
+      - 5900:5900 #default VNC server
+  website:
+    build:
+      context: .
+    ports:
+      - 80:80
+  integration-tests:
+    volumes:
+        - "$PWD:/app"  # make test available to the container
+    build:
+      context: .
+      dockerfile: rspec.dockerfile
+    command:
+      - --pattern
+      - /app/spec/integration/*_spec.rb
+  # unit test container
+  unit-tests:
+    volumes:
+        - "$PWD:/app"  # make test available to the container
+    build:
+      context: .
+      dockerfile: rspec.dockerfile
+    command:
+      - --pattern
+      - /app/spec/unit/*_spec.rb
